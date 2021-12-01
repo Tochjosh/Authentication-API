@@ -3,6 +3,8 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.generics import get_object_or_404
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
 
 User = get_user_model()
 '''If you reference User directly (for example, by referring to it in a foreign key), 
@@ -32,6 +34,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 class RegistrationSerializer(serializers.ModelSerializer):
     password2 = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+
     # write _only makes sure the  password isn't sent back to the user
 
     class Meta:
@@ -82,3 +85,20 @@ class LoginSerializer(serializers.ModelSerializer):
             'username': user.username,
             'tokens': user.tokens()
         }
+
+
+class LogOutSerializer(serializers.Serializer):
+    token = serializers.CharField()
+
+    def validate(self, attrs):
+        self.token = attrs.get('refresh')  # set the token as the token from the attrs from the view request
+
+        return attrs
+
+    def save(self, **kwargs):
+        try:
+            RefreshToken(self.token).blacklist()  # login logic is implemented by blacklisting
+            # refresh token so that the user has to revalidate by logging in again
+
+        except TokenError:
+            self.fail('bad token')

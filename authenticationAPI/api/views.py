@@ -1,12 +1,12 @@
 import jwt
 from django.contrib.auth import get_user_model
 from django.contrib.sites.shortcuts import get_current_site
-from rest_framework import generics, status
+from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from authenticationAPI.api.serializer import RegistrationSerializer, LoginSerializer
+from authenticationAPI.api.serializer import RegistrationSerializer, LoginSerializer, LogOutSerializer
 from authenticationAPI.api.utils import Util
 from authentication_system import settings
 
@@ -44,7 +44,9 @@ class VerifyEmailView(generics.GenericAPIView):
     def get(self, request):
         token = request.GET.get('token')
         try:
-            payload = jwt.decode(token, settings.SECRET_KEY)
+            payload = jwt.decode(token, settings.SECRET_KEY)  # SECRET_KEY is the default signing key
+            # for you django project though it can be customized
+
             user = User.objects.get(id=payload['id'])
             if not user.is_verified:
                 user.is_verified = True
@@ -64,3 +66,15 @@ class LoginApiView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
 
         return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+
+
+class LogoutApiView(generics.GenericAPIView):
+    serializer_class = LogOutSerializer
+    permission_classes = permissions.IsAuthenticated
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
